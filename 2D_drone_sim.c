@@ -9,6 +9,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdarg.h> //可変長引数関数を使うために必要
+#include <math.h>
 
 #define RADPS2RPM (60.0/2.0/3.14159)
 
@@ -29,6 +30,7 @@ const double Ct = 3.5e-6;//Cofficient thrust[N]
 const double lcpt=0.09; //Drome arm length[m]
 const double Jcpt=6.0e-3; //Drone moment of inertia
 const double Md = 0.35;//Mass of drone
+const double Grav = 9.80665; //Accelaration of gravity[m/s^2]
 const double End_time = 0.5;//Time [s]
 
 //モータ状態構造体
@@ -42,13 +44,34 @@ typedef struct
   double u_;
 } motor_t;
 
+//
+//マルチコプタ座標系
+// 
+// 右が正、下が正
+// 反時計回りが回転の正
+//
+// (o)------------>x
+//  |
+//  |
+//  |
+//  |
+//  V
+//  z
+
 //マルチコプタ状態構造体
 typedef struct
 {
   double q;
   double theta;
+  double u;
+  double w;
+  double x;
+  double z; 
   double q_;
   double theta_;
+  double w_;
+  double x_;
+  double z_; 
 } drone_t;
 
 //Equation of current
@@ -78,10 +101,10 @@ double omega_dot(double omega, double t, double *value)
 }
 
 
-//Multcopter Equation of current
+//Multcopter Equation of angular motion
 //Jcpt dq/dt = (T_R-T_L) l
-//omega_R:angular velocity
-//omega_L:angular velocity
+//omega_R:prop angular velocity
+//omega_L:prop angular velocity
 //t:time
 //value[0]:omega_R
 //value[1]:omega_L
@@ -94,7 +117,43 @@ double q_dot(double q, double t, double *value)
   return (T_R - T_L)*lcpt/Jcpt;
 }
 
-//Drone Equation of motion
+//Multcopter Equation of motion
+//Md du/dt = -(T_R+T_L) + Md*grav*sin(theta)
+//omega_R:angular velocity
+//omega_L:angular velocity
+//t:time
+//value[0]:omega_R
+//value[1]:omega_L
+//value[2]:theta
+double u_dot(double w, double t, double *value)
+{
+  double omega_R = value[0];
+  double omega_L = value[1];
+  double theta = value[2];
+  double T_R = Ct * omega_R * omega_R;
+  double T_L = Ct * omega_L * omega_L;
+  return -Md*Grav*sin(theta)/Md;
+}
+
+//Multcopter Equation of motion
+//Md du/dt = -(T_R+T_L) + Md*grav*sin(theta)
+//omega_R:angular velocity
+//omega_L:angular velocity
+//t:time
+//value[0]:omega_R
+//value[1]:omega_L
+//value[2]:theta
+double w_dot(double w, double t, double *value)
+{
+  double omega_R = value[0];
+  double omega_L = value[1];
+  double theta = value[2];
+  double T_R = Ct * omega_R * omega_R;
+  double T_L = Ct * omega_L * omega_L;
+  return (-(T_R + T_L) + Md*Grav*cos(theta))/Md;
+}
+
+//Multicopter kinematics
 //dtheta/dt = q
 //t:time
 //value[0]:q
@@ -102,6 +161,34 @@ double theta_dot(double theta, double t, double *value)
 {
   double q=value[0];
   return q;
+}
+
+//Multicopter kinematics
+//dx/dt = u*cos(theta) + w*sin(theta)
+//t:time
+//value[0]:u
+//value[1]:w
+//value[2]:theta
+double x_dot(double theta, double t, double *value)
+{
+  double u = value[0];
+  double w = value[1];
+  double theta= value[2];
+  return u*cos(theta) + w*sin(theta); 
+}
+
+//Multicopter kinematics
+//dz/dt = -u*sin(theta) + w*cos(theta)
+//t:time
+//value[0]:u
+//value[1]:w
+//value[2]:theta
+double z_dot(double theta, double t, double *value)
+{
+  double u = value[0];
+  double w = value[1];
+  double theta= value[2];
+  return -u*sin(theta) + w*cos(theta); 
 }
 
 //Runge Kutta method
@@ -144,6 +231,9 @@ void save_state(motor_t* motor, drone_t* drone)
   }
   drone->q_ = drone->q;
   drone->theta_ = drone->theta;
+  drone->u_ = drone->u;
+  drone->w_ = 
+
 }
 
 void print_state(double t, motor_t* motor, drone_t drone)
@@ -198,7 +288,6 @@ void drone_sim(void)
     //Output
     print_state(t, motor, drone);
   }
-
 }
 
 void main(void)
