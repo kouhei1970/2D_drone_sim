@@ -69,6 +69,7 @@ typedef struct
   double z; 
   double q_;
   double theta_;
+  double u_;
   double w_;
   double x_;
   double z_; 
@@ -99,7 +100,6 @@ double omega_dot(double omega, double t, double *value)
   double TL=Cq * omega * omega;
   return (Km * i - Dm * omega - TL)/Jm;
 }
-
 
 //Multcopter Equation of angular motion
 //Jcpt dq/dt = (T_R-T_L) l
@@ -169,7 +169,7 @@ double theta_dot(double theta, double t, double *value)
 //value[0]:u
 //value[1]:w
 //value[2]:theta
-double x_dot(double theta, double t, double *value)
+double x_dot(double x, double t, double *value)
 {
   double u = value[0];
   double w = value[1];
@@ -183,7 +183,7 @@ double x_dot(double theta, double t, double *value)
 //value[0]:u
 //value[1]:w
 //value[2]:theta
-double z_dot(double theta, double t, double *value)
+double z_dot(double z, double t, double *value)
 {
   double u = value[0];
   double w = value[1];
@@ -232,20 +232,25 @@ void save_state(motor_t* motor, drone_t* drone)
   drone->q_ = drone->q;
   drone->theta_ = drone->theta;
   drone->u_ = drone->u;
-  drone->w_ = 
-
+  drone->w_ = drone->w;
+  drone->x_ = drone->x;
+  drone->z_ = drone->z;
 }
 
 void print_state(double t, motor_t* motor, drone_t drone)
 {
-  printf("%11.8f %11.8f %11.8f %11.8f %11.8f %11.8f %11.8f\n",
+  printf("%11.8f %11.8f %11.8f %11.8f %11.8f %11.8f %11.8f %11.8f %11.8f %11.8f %11.8f\n",
     t, 
     motor[RIGHT].i, 
     motor[LEFT].i, 
-    motor[RIGHT].omega*RADPS2RPM,
-    motor[LEFT].omega*RADPS2RPM,
+    motor[RIGHT].omega,
+    motor[LEFT].omega,
     drone.q,
-    drone.theta
+    drone.theta,
+    drone.u,
+    drone.w,
+    drone.x,
+    drone.z
   );
 }
 
@@ -283,6 +288,11 @@ void drone_sim(void)
     }
     drone.q = rk4(q_dot, drone.q_, t, h, 2, motor[RIGHT].omega_, motor[LEFT].omega_);
     drone.theta = rk4(theta_dot, drone.theta_, t, h, 1, drone.q_);
+    drone.u = rk4(u_dot, drone.u_, t, h, 3, motor[RIGHT].omega_, motor[LEFT].omega_, drone.theta_);
+    drone.w = rk4(w_dot, drone.w_, t, h, 3, motor[RIGHT].omega_, motor[LEFT].omega_, drone.theta_);
+    drone.x = rk4(x_dot, drone.x_, t, h, 3, drone.u_, drone.w_, drone.theta_);
+    drone.z = rk4(z_dot, drone.z_, t, h, 3, drone.u_, drone.w_, drone.theta_);
+
     t = t + h;
     
     //Output
