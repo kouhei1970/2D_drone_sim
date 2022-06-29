@@ -31,7 +31,7 @@ const double lcpt=0.09; //Drome arm length[m]
 const double Jcpt=6.0e-3; //Drone moment of inertia
 const double Md = 0.35;//Mass of drone
 const double Grav = 9.80665; //Accelaration of gravity[m/s^2]
-const double End_time = 0.5;//Time [s]
+const double End_time = 2.0;//Time [s]
 
 //モータ状態構造体
 typedef struct 
